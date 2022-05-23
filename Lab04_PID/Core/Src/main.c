@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "pid.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,7 +39,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
- ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc1;
 
 DAC_HandleTypeDef hdac1;
 
@@ -49,9 +49,16 @@ TIM_HandleTypeDef htim7;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+cpid_t pid;
+volatile int flag = 0;
 volatile int adc_flag = 0;
 volatile int adc_value = 0;
+volatile uint8_t dac_index = 0;
 volatile int dac_value = 0;
+
+int pid_control;
+
+//volatile int16_t dac_value[6] = {0, 10000, 20000, 30000, 20000, 10000};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,7 +79,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim == &htim7)
 	{
-		dac_value += 1;
+		if(!HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin))
+		{
+			dac_value = 10000;
+			HAL_DAC_SetValue(&hdac1, DAC1_CHANNEL_1, DAC_ALIGN_12B_R, dac_value);
+		}
+		else
+		{
+			dac_value = 0;
+			HAL_DAC_SetValue(&hdac1, DAC1_CHANNEL_1, DAC_ALIGN_12B_R, dac_value);
+		}
 	}
 }
 
@@ -82,6 +98,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	{
 		adc_flag = 1;
 		adc_value = HAL_ADC_GetValue(&hadc1);
+
 	}
 }
 /* USER CODE END 0 */
@@ -102,7 +119,15 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  pid_init(&pid, 1.0f, 0, 0, 10, 1);
+  pid.p_max = pid_scale(&pid, 4095);
+  pid.p_min = pid_scale(&pid, -4095);
+  pid.i_max = pid_scale(&pid, 4095);
+  pid.i_min = pid_scale(&pid, -4095);
+  pid.d_max = pid_scale(&pid, 4095);
+  pid.d_min = pid_scale(&pid, -4095);
+  pid.total_max = pid_scale(&pid, 4095);
+  pid.total_min = pid_scale(&pid, 0);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -133,20 +158,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if(!HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin))
-	  {
-		  HAL_DAC_SetValue(&hdac1, DAC1_CHANNEL_1, DAC_ALIGN_12B_R, 4095);
-		  HAL_Delay(10);
-	  }
-	  else
-		  HAL_DAC_SetValue(&hdac1, DAC1_CHANNEL_1, DAC_ALIGN_12B_R, 0);
-
 	  if(adc_flag == 1)
 	  {
 		  adc_flag = 0;
+		  pid_control = pid_calc(&pid, adc_value, dac_value);
 
 		  HAL_ADC_Start_IT(&hadc1);
-
 	  }
 
     /* USER CODE END WHILE */
