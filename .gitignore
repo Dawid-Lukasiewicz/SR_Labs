@@ -1,2 +1,8 @@
 /.metadata/
-*/Debug
+*/Debug/*
+\Debug\
+*.0
+*.su
+*.elf
+*.list
+*.map

@@ -31,6 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define SIN_N_PERIOD 100
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,11 +54,20 @@ cpid_t pid;
 volatile int flag = 0;
 volatile int adc_flag = 0;
 volatile int adc_value = 0;
-volatile uint8_t dac_index = 0;
-volatile int dac_value = 0;
+volatile uint8_t sin_n = 0;
+volatile int desired_value = 0;
 
 int pid_control;
 
+uint16_t sin_wave[] = { 2048, 2112, 2176, 2239, 2302, 2364, 2424, 2483, 2541,
+2596, 2649, 2700, 2748, 2794, 2836, 2876, 2912, 2945, 2974, 2999, 3021,
+3039, 3053, 3063, 3069, 3071, 3069, 3063, 3053, 3039, 3021, 2999, 2974,
+2945, 2912, 2876, 2836, 2794, 2748, 2700, 2649, 2596, 2541, 2483, 2424,
+2364, 2302, 2239, 2176, 2112, 2048, 1983, 1919, 1856, 1793, 1731, 1671,
+1612, 1554, 1499, 1446, 1395, 1347, 1301, 1259, 1219, 1183, 1150, 1121,
+1096, 1074, 1056, 1042, 1032, 1026, 1024, 1026, 1032, 1042, 1056, 1074,
+1096, 1121, 1150, 1183, 1219, 1259, 1301, 1347, 1395, 1446, 1499, 1554,
+1612, 1671, 1731, 1793, 1856, 1919, 1983, };
 //volatile int16_t dac_value[6] = {0, 10000, 20000, 30000, 20000, 10000};
 /* USER CODE END PV */
 
@@ -79,15 +89,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim == &htim7)
 	{
-		if(!HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin))
+		if(htim == &htim7)
 		{
-			dac_value = 10000;
-			HAL_DAC_SetValue(&hdac1, DAC1_CHANNEL_1, DAC_ALIGN_12B_R, dac_value);
-		}
-		else
-		{
-			dac_value = 0;
-			HAL_DAC_SetValue(&hdac1, DAC1_CHANNEL_1, DAC_ALIGN_12B_R, dac_value);
+			if(sin_n < SIN_N_PERIOD)
+			{
+				desired_value = sin_wave[sin_n];
+				++sin_n;
+			}
+			else
+				sin_n = 0;
+
 		}
 	}
 }
@@ -119,7 +130,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  pid_init(&pid, 1.0f, 0, 0, 10, 1);
+  pid_init(&pid, 1.0f, 0, 0, 10, 10);
   pid.p_max = pid_scale(&pid, 4095);
   pid.p_min = pid_scale(&pid, -4095);
   pid.i_max = pid_scale(&pid, 4095);
@@ -161,8 +172,8 @@ int main(void)
 	  if(adc_flag == 1)
 	  {
 		  adc_flag = 0;
-		  pid_control = pid_calc(&pid, adc_value, dac_value);
-
+		  pid_control = pid_calc(&pid, adc_value, desired_value);
+		  HAL_DAC_SetValue(&hdac1, DAC1_CHANNEL_1, DAC_ALIGN_12B_R, pid_control);
 		  HAL_ADC_Start_IT(&hadc1);
 	  }
 
