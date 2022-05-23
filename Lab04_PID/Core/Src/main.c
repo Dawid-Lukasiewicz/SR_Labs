@@ -89,7 +89,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if(htim == &htim7)
 	{
 		if(!HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin))
-			desired_value = 4095;
+			desired_value = 2045;
 		else
 			desired_value = 0;
 	}
