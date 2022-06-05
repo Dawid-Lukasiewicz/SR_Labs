@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,6 +31,16 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+/*EXPANDER MAIN REGISTERS*/
+#define IO_DIRECTION_REG 0x00
+#define I_PULLUP_REG 0x06
+#define I_READ_REG 0x09
+#define O_CHANGE_REG 0x0A
+
+/**/
+#define EXPANDER_WRITE 0x40
+#define EXPANDER_READ 0x41
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,11 +63,36 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
+int _write(int file, char* message, int len)
+{
+	HAL_UART_Transmit(&huart2, (uint8_t*)message, len, 2);
+	return len;
+}
 
+void SPI_Communication(uint8_t* buff, int len)
+{
+	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_RESET);
+	HAL_SPI_Transmit(&hspi2, buff, len, HAL_MAX_DELAY);
+	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_SET);
+}
+
+uint8_t readReg(uint8_t Reg)
+{
+	uint8_t rx[2] = {EXPANDER_READ, Reg};
+	uint8_t value;
+
+	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_RESET);
+	HAL_SPI_Transmit(&hspi2, rx, 2, HAL_MAX_DELAY);
+	HAL_SPI_Receive(&hspi2, &value, 1, HAL_MAX_DELAY);
+	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_SET);
+
+	return value;
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 
 /* USER CODE END 0 */
 
@@ -93,12 +128,31 @@ int main(void)
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
+  /*CONFIGURATING EXPANDERS GPIOS: GPIO0-GPIO3*/
+  	uint8_t expConfig[3] = {EXPANDER_WRITE, IO_DIRECTION_REG, 0xF0};
+  	SPI_Communication(expConfig, 3);
+  	uint8_t ex1[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xF5};
+  	uint8_t ex2[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xFA};
+  	uint8_t ex3[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xFF};
+  	uint8_t ex4[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xF0};
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  SPI_Communication(ex1, 3);
+	  printf("Read pins = %u", readReg(I_READ_REG));
+	  HAL_Delay(1000);
+	  SPI_Communication(ex2, 3);
+	  printf("Read pins = %u", readReg(I_READ_REG));
+	  HAL_Delay(1000);
+	  SPI_Communication(ex3, 3);
+	  printf("Read pins = %u", readReg(I_READ_REG));
+	  HAL_Delay(1000);
+	  SPI_Communication(ex4, 3);
+	  printf("Read pins = %u", readReg(I_READ_REG));
+	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -270,6 +324,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : READ1_Pin READ2_Pin READ3_Pin READ4_Pin */
+  GPIO_InitStruct.Pin = READ1_Pin|READ2_Pin|READ3_Pin|READ4_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 
