@@ -7,6 +7,8 @@
 
 #include "pid.h"
 
+#define TAU 150000*0.0000047
+
 void pid_init(cpid_t * pid, float p, float i, float d, uint8_t f, int32_t dt_ms)
 {
 	uint32_t k;
@@ -54,7 +56,7 @@ int32_t pid_calc(cpid_t * pid, int32_t mv, int32_t dv)
 	i = pid->sum;
 	//UZUPELNIJ WYLICZANIE SYGNALU PRZEZ CZLON CALKUJACY
 	//PAMIETAJ O SKALOWANIU CZASU WYKONYWANIA PETLI DO SEKUND
-	i += pid->dt_ms/100 * pid->i * e;
+	i += pid->dt_ms/1000 * pid->i * e;
 
 	if (i > pid->i_max)
 		i = pid->i_max;
@@ -65,7 +67,7 @@ int32_t pid_calc(cpid_t * pid, int32_t mv, int32_t dv)
 	pid->i_val = i >> pid->f;
 	//UZUPELNIJ WYLICZANIE SYGNALU PRZEZ CZLON ROZNICZKUJACEGO
 	//PAMIETAJ O SKALOWANIU CZASU WYKONYWANIA PETLI DO SEKUND
-	d = 100/pid->dt_ms * pid->d * (e - pid->e_last);
+	d = 1000/pid->dt_ms * pid->d * (e - pid->e_last);
 
 	if (d > pid->d_max)
 		d = pid->d_max;
