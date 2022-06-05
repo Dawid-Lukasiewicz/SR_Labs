@@ -4,7 +4,7 @@
 # .cproject
 .dep/
 # .project
-.settings/
+# .settings/
 
 #files being edited
 *~
