@@ -1,9 +1,9 @@
 */Debug
 .metadata
 #Some of these are related to eclipse. So i keep them out of my repo
-.cproject
+# .cproject
 .dep/
-.project
+# .project
 .settings/
 
 #files being edited
