@@ -32,7 +32,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-/*EXPANDER MAIN REGISTERS*/
+/*EXPANDER MCP23S08 MAIN REGISTERS*/
 #define IO_DIRECTION_REG 0x00
 #define I_PULLUP_REG 0x06
 #define I_READ_REG 0x09
@@ -69,24 +69,26 @@ int _write(int file, char* message, int len)
 	return len;
 }
 
-void SPI_Communication(uint8_t* buff, int len)
+void expanderMCP_writeReg(uint8_t Reg, uint8_t Value)
 {
+	uint8_t tx[3] = {EXPANDER_WRITE, Reg, Value};
+
 	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi2, buff, len, HAL_MAX_DELAY);
+	HAL_SPI_Transmit(&hspi2, tx, 3, HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_SET);
 }
 
-uint8_t readReg(uint8_t Reg)
+uint8_t expanderMCP_expanderMCP_readReg(uint8_t Reg)
 {
 	uint8_t rx[2] = {EXPANDER_READ, Reg};
-	uint8_t value;
+	uint8_t Value;
 
 	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_RESET);
 	HAL_SPI_Transmit(&hspi2, rx, 2, HAL_MAX_DELAY);
-	HAL_SPI_Receive(&hspi2, &value, 1, HAL_MAX_DELAY);
+	HAL_SPI_Receive(&hspi2, &Value, 1, HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_SET);
 
-	return value;
+	return Value;
 }
 /* USER CODE END PFP */
 
@@ -129,8 +131,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /*CONFIGURATING EXPANDERS GPIOS: GPIO0-GPIO3*/
-  	uint8_t expConfig[3] = {EXPANDER_WRITE, IO_DIRECTION_REG, 0xF0};
-  	SPI_Communication(expConfig, 3);
+  	expanderMCP_writeReg(IO_DIRECTION_REG, 0xF0);
   	uint8_t ex1[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xF5};
   	uint8_t ex2[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xFA};
   	uint8_t ex3[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xFF};
@@ -141,17 +142,18 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  SPI_Communication(ex1, 3);
-	  printf("Read pins = %u", readReg(I_READ_REG));
+	  /* Zadanie na sterowanie wyjściami GPIO z expandera MCP23S08 */
+	  expanderMCP_writeReg(O_CHANGE_REG, 0xF5);
+	  printf("Read pins = %u", expanderMCP_readReg(I_READ_REG));
 	  HAL_Delay(1000);
-	  SPI_Communication(ex2, 3);
-	  printf("Read pins = %u", readReg(I_READ_REG));
+	  expanderMCP_writeReg(O_CHANGE_REG, 0xFA);
+	  printf("Read pins = %u", expanderMCP_readReg(I_READ_REG));
 	  HAL_Delay(1000);
-	  SPI_Communication(ex3, 3);
-	  printf("Read pins = %u", readReg(I_READ_REG));
+	  expanderMCP_writeReg(O_CHANGE_REG, 0xFF);
+	  printf("Read pins = %u", expanderMCP_readReg(I_READ_REG));
 	  HAL_Delay(1000);
-	  SPI_Communication(ex4, 3);
-	  printf("Read pins = %u", readReg(I_READ_REG));
+	  expanderMCP_writeReg(O_CHANGE_REG, 0xF0);
+	  printf("Read pins = %u", expanderMCP_readReg(I_READ_REG));
 	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
