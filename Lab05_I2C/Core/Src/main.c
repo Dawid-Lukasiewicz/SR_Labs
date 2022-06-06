@@ -33,10 +33,17 @@
 /* USER CODE BEGIN PD */
 
 /*EXPANDER MCP23S08 MAIN REGISTERS*/
-#define IO_DIRECTION_REG 0x00
-#define I_PULLUP_REG 0x06
-#define I_READ_REG 0x09
-#define O_CHANGE_REG 0x0A
+#define ADDRES_LPS22HB 0xBA
+#define WHO_AM_I_LPS22HP 0x0F
+#define LPS22HB_CTRL_REG1 0x20
+#define LPS22HB_CTRL_REG2 0x21
+#define LPS22HB_CTRL_REG3 0x22
+#define LPS22HB_CTRL_REG4 0x23
+#define LPS22HB_PRESS_OUT_XL 0x28
+#define LPS22HB_PRESS_OUT_L 0x29
+#define LPS22HB_PRESS_OUT_H 0x2A
+#define LPS22HB_TEMP_OUT_L 0x2B
+#define LPS25HB_TEMP_OUT_H 0x2C
 
 /**/
 #define EXPANDER_WRITE 0x40
@@ -49,7 +56,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
- SPI_HandleTypeDef hspi2;
+ I2C_HandleTypeDef hi2c1;
 
 UART_HandleTypeDef huart2;
 
@@ -61,7 +68,7 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_SPI2_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 int _write(int file, char* message, int len)
 {
@@ -69,26 +76,17 @@ int _write(int file, char* message, int len)
 	return len;
 }
 
-void expanderMCP_writeReg(uint8_t Reg, uint8_t Value)
+uint8_t lpsReadREG(uint8_t Reg)
 {
-	uint8_t tx[3] = {EXPANDER_WRITE, Reg, Value};
-
-	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi2, tx, 3, HAL_MAX_DELAY);
-	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_SET);
-}
-
-uint8_t expanderMCP_expanderMCP_readReg(uint8_t Reg)
-{
-	uint8_t rx[2] = {EXPANDER_READ, Reg};
-	uint8_t Value;
-
-	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi2, rx, 2, HAL_MAX_DELAY);
-	HAL_SPI_Receive(&hspi2, &Value, 1, HAL_MAX_DELAY);
-	HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_SET);
+	uint8_t Value = 0;
+	HAL_I2C_Mem_Read(&hi2c1, ADDRES_LPS22HB, Reg, 1, &Value, sizeof(Value), HAL_MAX_DELAY);
 
 	return Value;
+}
+
+void lpsWriteREG(uint8_t Reg, uint8_t Value)
+{
+	HAL_I2C_Mem_Write(&hi2c1, ADDRES_LPS22HB, Reg, 1, &Value, sizeof(Value), HAL_MAX_DELAY);
 }
 /* USER CODE END PFP */
 
@@ -105,7 +103,11 @@ uint8_t expanderMCP_expanderMCP_readReg(uint8_t Reg)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	uint8_t who_am_i = lpsReadREG(WHO_AM_I_LPS22HP);
+	if(who_am_i == 0b10110001)
+		printf("[INFO] Correct device\r\n");
+	else
+		printf("[ERROR] Wrong device, received addres = %u \n\r", who_am_i);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -127,33 +129,18 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_SPI2_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   /*CONFIGURATING EXPANDERS GPIOS: GPIO0-GPIO3*/
-  	expanderMCP_writeReg(IO_DIRECTION_REG, 0xF0);
-  	uint8_t ex1[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xF5};
-  	uint8_t ex2[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xFA};
-  	uint8_t ex3[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xFF};
-  	uint8_t ex4[3] = {EXPANDER_WRITE, O_CHANGE_REG, 0xF0};
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  expanderMCP_writeReg(ex1, 3);
-	  printf("Read pins = %u", expanderMCP_readReg(I_READ_REG));
-	  HAL_Delay(1000);
-	  expanderMCP_writeReg(ex2, 3);
-	  printf("Read pins = %u", expanderMCP_readReg(I_READ_REG));
-	  HAL_Delay(1000);
-	  expanderMCP_writeReg(ex3, 3);
-	  printf("Read pins = %u", expanderMCP_readReg(I_READ_REG));
-	  HAL_Delay(1000);
-	  expanderMCP_writeReg(ex4, 3);
-	  printf("Read pins = %u", expanderMCP_readReg(I_READ_REG));
-	  HAL_Delay(1000);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -211,42 +198,50 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief SPI2 Initialization Function
+  * @brief I2C1 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_SPI2_Init(void)
+static void MX_I2C1_Init(void)
 {
 
-  /* USER CODE BEGIN SPI2_Init 0 */
+  /* USER CODE BEGIN I2C1_Init 0 */
 
-  /* USER CODE END SPI2_Init 0 */
+  /* USER CODE END I2C1_Init 0 */
 
-  /* USER CODE BEGIN SPI2_Init 1 */
+  /* USER CODE BEGIN I2C1_Init 1 */
 
-  /* USER CODE END SPI2_Init 1 */
-  /* SPI2 parameter configuration*/
-  hspi2.Instance = SPI2;
-  hspi2.Init.Mode = SPI_MODE_MASTER;
-  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
-  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi2.Init.CRCPolynomial = 7;
-  hspi2.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
-  hspi2.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x10909CEC;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN SPI2_Init 2 */
 
-  /* USER CODE END SPI2_Init 2 */
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -301,9 +296,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(SPI2_CS0_GPIO_Port, SPI2_CS0_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
@@ -311,13 +303,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : SPI2_CS0_Pin */
-  GPIO_InitStruct.Pin = SPI2_CS0_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(SPI2_CS0_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
