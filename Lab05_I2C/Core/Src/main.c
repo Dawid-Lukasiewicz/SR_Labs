@@ -45,6 +45,11 @@
 #define LPS22HB_TEMP_OUT_L 0x2B
 #define LPS25HB_TEMP_OUT_H 0x2C
 
+/*EXPANDER PCF8574N*/
+#define PCF_ADDRESS_WRITE 0x40
+#define PCF_ADDRESS_READ 0x41
+
+
 /**/
 #define EXPANDER_WRITE 0x40
 #define EXPANDER_READ 0x41
@@ -103,11 +108,7 @@ void lpsWriteREG(uint8_t Reg, uint8_t Value)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint8_t who_am_i = lpsReadREG(WHO_AM_I_LPS22HP);
-	if(who_am_i == 0b10110001)
-		printf("[INFO] Correct device\r\n");
-	else
-		printf("[ERROR] Wrong device, received addres = %u \n\r", who_am_i);
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -133,14 +134,27 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /*CONFIGURATING EXPANDERS GPIOS: GPIO0-GPIO3*/
+  //	uint8_t who_am_i = lpsReadREG(WHO_AM_I_LPS22HP);
+  //	if(who_am_i == 0b10110001)
+  //		printf("[INFO] Correct device\r\n");
+  //	else
+  //		printf("[ERROR] Wrong device, received addres = %u \n\r", who_am_i);
 
+  lpsWriteREG(PCF_ADDRESS_WRITE, 0b00000001);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
+	  lpsWriteREG(PCF_ADDRESS_WRITE, 0b00000000);
+	  HAL_Delay(1000);
+	  lpsWriteREG(PCF_ADDRESS_WRITE, 0b00000001);
+	  HAL_Delay(1000);
+	  lpsWriteREG(PCF_ADDRESS_WRITE, 0b00000010);
+	  HAL_Delay(1000);
+	  lpsWriteREG(PCF_ADDRESS_WRITE, 0b00000011);
+	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
